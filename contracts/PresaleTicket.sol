@@ -4,8 +4,9 @@ pragma solidity ^0.8.4;
 
 import { ERC1155, ERC1155Supply } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import { AccessControlEnumerable, RBAC } from "./RBAC.sol";
+import "./interfaces/INFT.sol";
 
-contract PresaleTicket is ERC1155Supply, RBAC {
+contract PresaleTicket is ERC1155Supply, RBAC, INFT {
     uint256 public constant TICKET_ID = 0;
 
     constructor(address _admin)
@@ -15,7 +16,7 @@ contract PresaleTicket is ERC1155Supply, RBAC {
         require(_admin != address(0), "Is admin black hole?");
     }
 
-    function mint(address _to, uint256 _amount) external onlyRole(MINTER_ROLE) {
+    function mint(address _to, uint256 _amount) external override onlyRole(MINTER_ROLE) {
         _mint(_to, TICKET_ID, _amount, bytes(""));
     }
 
