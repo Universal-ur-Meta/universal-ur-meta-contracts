@@ -24,21 +24,13 @@ abstract contract OracleSales is ManagedSales {
     // eth-usd pair
     function countOutputAmount(uint256 _ethInput) public view returns (uint256 umOutput, uint256 usdOutput) {
         IUniV2PriceOracle _priceOracle = IUniV2PriceOracle(priceOracle);
-        address token0 = _priceOracle.token0();
-        address token1 = _priceOracle.token1();
-        _ethInput *= 1e18;
-        if (token0 == baseStablecoin) {
-            umOutput = _priceOracle.consult(token0, _ethInput);
-        } else {
-            umOutput = _priceOracle.consult(token1, _ethInput);
-        }
-        umOutput /= price * 1e18;
-        usdOutput /= 1e18;
+        usdOutput = _priceOracle.consult(baseStablecoin, _ethInput);
+        umOutput = usdOutput / price;
     }
 
     function _updatePrice() internal {
         IUniV2PriceOracle _priceOracle = IUniV2PriceOracle(priceOracle);
-        if (_priceOracle.blockTimestampLast() + _priceOracle.PERIOD() >= block.timestamp) {
+        if (block.timestamp - _priceOracle.blockTimestampLast() > _priceOracle.PERIOD()) {
             _priceOracle.update();
         }
     }
