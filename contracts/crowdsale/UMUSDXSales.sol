@@ -62,7 +62,7 @@ contract UMUSDXSales is ReentrancyGuard, ManagedSales {
         uint256 inputAmount = countInputAmount(_intAmount);
         IERC20(depositToken).safeTransferFrom(_caller, fund, inputAmount);
 
-        uint256 umAmount = _intAmount * 10^18;
+        uint256 umAmount = _intAmount * 1e18;
         IFungibleToken(umToken).mint(_caller, umAmount);
 
         if (status == SalesStatus.PRESALE) {
