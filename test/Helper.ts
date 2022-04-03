@@ -18,3 +18,7 @@ export async function setNextBlockTimestamp(timestamp: number) {
     await network.provider.send("evm_setNextBlockTimestamp", [timestamp])
     await network.provider.send("evm_mine")
 }
+
+export async function mineBlock() {
+    await network.provider.send("evm_mine")
+}
