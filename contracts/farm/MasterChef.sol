@@ -63,6 +63,8 @@ contract MasterChef is Ownable {
     uint256 public totalAllocPoint = 0;
     // The block number when UM mining starts.
     uint256 public startBlock;
+    // Blocked LP for add func.
+    mapping (address => bool) internal _uniqLPs;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -89,12 +91,13 @@ contract MasterChef is Ownable {
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(
         uint256 _allocPoint,
         IERC20 _lpToken,
         bool _withUpdate
     ) public onlyOwner {
+        require(!_uniqLPs[address(_lpToken)], "LP already added");
+        _uniqLPs[address(_lpToken)] = true;
         if (_withUpdate) {
             massUpdatePools();
         }
