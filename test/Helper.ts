@@ -1,8 +1,9 @@
 import { expect } from "chai";
-import { network } from "hardhat";
+import {ethers, network} from "hardhat";
+import { getCurrentTimestamp } from "hardhat/internal/hardhat-network/provider/utils/getCurrentTimestamp";
 
 export function getTimestamp() {
-    return Math.floor(Date.now() / 1000);
+    return getCurrentTimestamp()
 }
 
 export async function expectRevert(condition: any, message: string) {
@@ -21,4 +22,8 @@ export async function setNextBlockTimestamp(timestamp: number) {
 
 export async function mineBlock() {
     await network.provider.send("evm_mine")
+}
+
+export async function getCurrentBlockNumber(): Promise<number> {
+    return ethers.provider.getBlockNumber()
 }

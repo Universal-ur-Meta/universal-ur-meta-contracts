@@ -75,6 +75,8 @@ describe("MasterChef", function () {
         umToken = await UMToken.deploy(OWNER, MAX_SUPPLY)
         await umToken.deployed()
 
+        const MINTER_ROLE = await umToken.MINTER_ROLE()
+
         usd = await ERC20Mock.deploy()
         await usd.deployed()
 
@@ -99,9 +101,9 @@ describe("MasterChef", function () {
 
         console.log(`Pair: ${WETH_USD.address}`)
 
-        await usd.mint(WETH_USD.address, 50000000000)
-        await weth.deposit({value: 10000000000})
-        await weth.transfer(WETH_USD.address, 10000000000)
+        await usd.mint(WETH_USD.address, "5000000000000000000")
+        await weth.deposit({value: "100000000000000"})
+        await weth.transfer(WETH_USD.address, "100000000000000")
 
         await WETH_USD.mint(ALICE)
 
@@ -109,16 +111,40 @@ describe("MasterChef", function () {
         console.log(await WETH_USD.balanceOf(ALICE))
         console.log(await WETH_USD.balanceOf(OWNER))
 
-        const MINTER_ROLE = await umToken.MINTER_ROLE()
+
+        await factory.createPair(weth.address, umToken.address);
+        let WETH_UM: Contract = await getPairAddress(weth.address, umToken.address)
+
+        console.log(`Pair: ${WETH_UM.address}`)
+
+        await umToken.grantRole(MINTER_ROLE, OWNER)
+        await umToken.mint(WETH_UM.address, "5000000000000000")
+        await weth.deposit({value: "1000000000000000"})
+        await weth.transfer(WETH_UM.address, "1000000000000000")
+
+        await WETH_UM.mint(ALICE)
+
+        console.log(await WETH_UM.balanceOf(AddressZero))
+        console.log(await WETH_UM.balanceOf(ALICE))
+        console.log(await WETH_UM.balanceOf(OWNER))
+
+
         await umToken.grantRole(MINTER_ROLE, farm.address)
     })
 
-    describe('success cases', () => {
+    describe.only('success cases', () => {
         it('#add', async () => {
             let WETH_USD: Contract = await getPairAddress(weth.address, usd.address)
             await farm.add(
                 100,
                 WETH_USD.address,
+                true
+            )
+
+            let WETH_UM: Contract = await getPairAddress(weth.address, umToken.address)
+            await farm.add(
+                150,
+                WETH_UM.address,
                 true
             )
         })
@@ -150,23 +176,41 @@ describe("MasterChef", function () {
 
         it('#deposit', async () => {
             let WETH_USD: Contract = await getPairAddress(weth.address, usd.address)
-            await WETH_USD.connect(ALICE_SIGNER).approve(farm.address, "1000")
-            await farm.connect(ALICE_SIGNER).deposit(0, "1000")
+            await WETH_USD.connect(ALICE_SIGNER).approve(farm.address, "22360679774996896")
+            await farm.connect(ALICE_SIGNER).deposit(0, "22360679774996896")
             console.log(await farm.pendingReward(0, ALICE))
             await mineBlock()
             console.log(await farm.pendingReward(0, ALICE))
             await mineBlock()
             console.log(await farm.pendingReward(0, ALICE))
+
+            let WETH_UM: Contract = await getPairAddress(weth.address, umToken.address)
+            await WETH_UM.connect(ALICE_SIGNER).approve(farm.address, "2236067977498789")
+            await farm.connect(ALICE_SIGNER).deposit(1, "2236067977498789")
+            console.log(await farm.pendingReward(1, ALICE))
+            await mineBlock()
+            console.log(await farm.pendingReward(1, ALICE))
+            await mineBlock()
+            console.log(await farm.pendingReward(1, ALICE))
         })
 
         it('#withdraw', async () => {
             let WETH_USD: Contract = await getPairAddress(weth.address, usd.address)
 
             console.log(await farm.pendingReward(0, ALICE))
-            await farm.connect(ALICE_SIGNER).withdraw(0, "1000")
+            await farm.connect(ALICE_SIGNER).withdraw(0, "22360679774996896")
 
             console.log(await farm.pendingReward(0, ALICE))
             console.log(await WETH_USD.balanceOf(ALICE))
+            console.log(await umToken.balanceOf(ALICE))
+
+            let WETH_UM: Contract = await getPairAddress(weth.address, umToken.address)
+
+            console.log(await farm.pendingReward(1, ALICE))
+            await farm.connect(ALICE_SIGNER).withdraw(1, "2236067977498789")
+
+            console.log(await farm.pendingReward(1, ALICE))
+            console.log(await WETH_UM.balanceOf(ALICE))
             console.log(await umToken.balanceOf(ALICE))
         })
     })

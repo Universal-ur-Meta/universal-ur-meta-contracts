@@ -6,7 +6,6 @@ import { solidity } from "ethereum-waffle"
 
 import UniswapV2FactoryArtifacts from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2PairArtifacts from "@uniswap/v2-core/build/UniswapV2Pair.json"
-import ExampleOracleSimpleArtifacts from "@uniswap/v2-periphery/build/ExampleOracleSimple.json"
 import WETH9Artifacts from "@uniswap/v2-periphery/build/WETH9.json"
 import {increaseTime} from "./Helper";
 
@@ -49,10 +48,7 @@ describe("UM with ETH sales", function () {
         const PresaleTicket = await ethers.getContractFactory("PresaleTicket");
         const UMEthereumSales = await ethers.getContractFactory("UMEthereumSales");
         const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-        const ExampleOracleSimple = await ethers.getContractFactory(
-            ExampleOracleSimpleArtifacts.abi,
-            ExampleOracleSimpleArtifacts.bytecode
-        );
+        const ExampleOracleSimple = await ethers.getContractFactory("ExampleOracleSimple");
         const UniswapV2Factory = await ethers.getContractFactory(
             UniswapV2FactoryArtifacts.abi,
             UniswapV2FactoryArtifacts.bytecode
