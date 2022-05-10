@@ -6,7 +6,6 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IFungibleToken.sol";
 import "../interfaces/IMigratorChef.sol";
@@ -19,7 +18,6 @@ import "../interfaces/IMigratorChef.sol";
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
 contract MasterChef is Ownable {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using SafeERC20 for IFungibleToken;
     // Info of each user.
@@ -103,7 +101,7 @@ contract MasterChef is Ownable {
         }
         uint256 lastRewardBlock =
         block.number > startBlock ? block.number : startBlock;
-        totalAllocPoint = totalAllocPoint.add(_allocPoint);
+        totalAllocPoint = totalAllocPoint + _allocPoint;
         poolInfo.push(
             PoolInfo({
                 lpToken: _lpToken,
@@ -123,10 +121,11 @@ contract MasterChef is Ownable {
         if (_withUpdate) {
             massUpdatePools();
         }
-        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(
-            _allocPoint
-        );
+        uint256 prevAllocPoint = poolInfo[_pid].allocPoint;
         poolInfo[_pid].allocPoint = _allocPoint;
+        if (prevAllocPoint != _allocPoint) {
+            totalAllocPoint = totalAllocPoint - prevAllocPoint + _allocPoint;
+        }
     }
 
     // Set the migrator contract. Can only be called by the owner.
@@ -157,7 +156,7 @@ contract MasterChef is Ownable {
         view
         returns (uint256 multiplier)
     {
-        multiplier = _to.sub(_from).mul(rewardMultiplier);
+        multiplier = (_to - _from) * rewardMultiplier;
     }
 
     // View function to see pending UMs on frontend.
@@ -171,17 +170,11 @@ contract MasterChef is Ownable {
         uint256 accTokensPerShare = pool.accTokensPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier =
-            getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 umReward =
-            multiplier.mul(umPerBlock).mul(pool.allocPoint).div(
-                totalAllocPoint
-            );
-            accTokensPerShare = accTokensPerShare.add(
-                umReward.mul(1e12).div(lpSupply)
-            );
+            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+            uint256 umReward = multiplier * umPerBlock * pool.allocPoint / totalAllocPoint;
+            accTokensPerShare = accTokensPerShare + (umReward * 1e12 / lpSupply);
         }
-        reward = user.amount.mul(accTokensPerShare).div(1e12).sub(user.rewardDebt);
+        reward = user.amount * accTokensPerShare / 1e12 - user.rewardDebt;
     }
 
     // Update reward vairables for all pools. Be careful of gas spending!
@@ -204,15 +197,12 @@ contract MasterChef is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 umReward =
-        multiplier.mul(umPerBlock).mul(pool.allocPoint).div(
-            totalAllocPoint
-        );
-        umToken.mint(devaddr, umReward.div(10));
+        uint256 umReward = multiplier * umPerBlock * pool.allocPoint / totalAllocPoint;
+
+        umToken.mint(devaddr, umReward / 10);
         umToken.mint(address(this), umReward);
-        pool.accTokensPerShare = pool.accTokensPerShare.add(
-            umReward.mul(1e12).div(lpSupply)
-        );
+
+        pool.accTokensPerShare = pool.accTokensPerShare + (umReward * 1e12 / lpSupply);
         pool.lastRewardBlock = block.number;
     }
 
@@ -222,10 +212,7 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending =
-            user.amount.mul(pool.accTokensPerShare).div(1e12).sub(
-                user.rewardDebt
-            );
+            uint256 pending = (user.amount * pool.accTokensPerShare / 1e12) - user.rewardDebt;
             _safeUMTransfer(msg.sender, pending);
         }
         pool.lpToken.safeTransferFrom(
@@ -233,8 +220,8 @@ contract MasterChef is Ownable {
             address(this),
             _amount
         );
-        user.amount = user.amount.add(_amount);
-        user.rewardDebt = user.amount.mul(pool.accTokensPerShare).div(1e12);
+        user.amount = user.amount + _amount;
+        user.rewardDebt = user.amount * pool.accTokensPerShare / 1e12;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -244,14 +231,15 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending =
-            user.amount.mul(pool.accTokensPerShare).div(1e12).sub(
-                user.rewardDebt
-            );
-        _safeUMTransfer(msg.sender, pending);
-        user.amount = user.amount.sub(_amount);
-        user.rewardDebt = user.amount.mul(pool.accTokensPerShare).div(1e12);
-        pool.lpToken.safeTransfer(address(msg.sender), _amount);
+        uint256 pending = (user.amount * pool.accTokensPerShare / 1e12) - user.rewardDebt;
+        if (pending > 0) {
+            _safeUMTransfer(msg.sender, pending);
+        }
+        if (_amount > 0) {
+            user.amount = user.amount - _amount;
+            pool.lpToken.safeTransfer(address(msg.sender), _amount);
+        }
+        user.rewardDebt = user.amount * pool.accTokensPerShare / 1e12;
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -269,9 +257,10 @@ contract MasterChef is Ownable {
     function _safeUMTransfer(address _to, uint256 _amount) internal {
         uint256 umBalance = umToken.balanceOf(address(this));
         if (_amount > umBalance) {
-            _amount = umBalance;
+            umToken.safeTransfer(_to, umBalance);
+        } else {
+            umToken.safeTransfer(_to, _amount);
         }
-        umToken.safeTransfer(_to, _amount);
     }
 
     // Update dev address by the previous dev.
