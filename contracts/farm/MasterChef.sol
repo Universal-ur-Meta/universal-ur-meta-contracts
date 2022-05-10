@@ -5,6 +5,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IFungibleToken.sol";
@@ -17,7 +18,7 @@ import "../interfaces/IMigratorChef.sol";
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
-contract MasterChef is Ownable {
+contract MasterChef is Ownable, Multicall {
     using SafeERC20 for IERC20;
     using SafeERC20 for IFungibleToken;
     // Info of each user.
@@ -215,11 +216,13 @@ contract MasterChef is Ownable {
             uint256 pending = (user.amount * pool.accTokensPerShare / 1e12) - user.rewardDebt;
             _safeUMTransfer(msg.sender, pending);
         }
-        pool.lpToken.safeTransferFrom(
-            address(msg.sender),
-            address(this),
-            _amount
-        );
+        if (_amount != 0) {
+            pool.lpToken.safeTransferFrom(
+                address(msg.sender),
+                address(this),
+                _amount
+            );
+        }
         user.amount = user.amount + _amount;
         user.rewardDebt = user.amount * pool.accTokensPerShare / 1e12;
         emit Deposit(msg.sender, _pid, _amount);

@@ -194,6 +194,36 @@ describe("MasterChef", function () {
             console.log(await farm.pendingReward(1, ALICE))
         })
 
+        it('claim through multicall', async () => {
+            await mineBlock()
+            console.log(`Reward Alice pool 0: ${await farm.pendingReward(0, ALICE)}`)
+            console.log(`Reward Alice pool 1: ${await farm.pendingReward(1, ALICE)}`)
+
+            await farm.connect(ALICE_SIGNER).multicall(
+                [
+                    farm.interface.encodeFunctionData('deposit', [0, 0]),
+                    farm.interface.encodeFunctionData('deposit', [1, 0]),
+                ]
+            )
+
+            assert.equal(Number(await farm.pendingReward(0, ALICE)), 0, 'Pool reward 0 not zero?')
+            assert.equal(Number(await farm.pendingReward(1, ALICE)), 0, 'Pool reward 0 not zero?')
+
+            await mineBlock()
+            console.log(`Reward Alice pool 0: ${await farm.pendingReward(0, ALICE)}`)
+            console.log(`Reward Alice pool 1: ${await farm.pendingReward(1, ALICE)}`)
+
+            await farm.connect(ALICE_SIGNER).multicall(
+                [
+                    farm.interface.encodeFunctionData('deposit', [0, 0]),
+                    farm.interface.encodeFunctionData('deposit', [0, 0]),
+                ]
+            )
+
+            assert.equal(Number(await farm.pendingReward(0, ALICE)), 0, 'Pool reward 0 not zero?')
+
+        })
+
         it('#withdraw', async () => {
             let WETH_USD: Contract = await getPairAddress(weth.address, usd.address)
 
