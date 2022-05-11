@@ -6,6 +6,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../interfaces/IFungibleToken.sol";
@@ -81,7 +82,7 @@ contract MasterChef is Ownable, Multicall {
     ) {
         require(
             address(_umToken) != address(0) &&
-            devaddr != address(0),
+            _devaddr != address(0),
             "Master chef: constructor set"
         );
 
@@ -101,6 +102,7 @@ contract MasterChef is Ownable, Multicall {
         IERC20 _lpToken,
         bool _withUpdate
     ) public onlyOwner {
+        require(Address.isContract(address(_lpToken)), "Only contract support");
         require(!_uniqLPs[address(_lpToken)], "LP already added");
         _uniqLPs[address(_lpToken)] = true;
         if (_withUpdate) {
@@ -215,7 +217,7 @@ contract MasterChef is Ownable, Multicall {
 
     // Deposit LP tokens to MasterChef for UM allocation.
     function deposit(uint256 _pid, uint256 _amount) public {
-        PoolInfo memory pool = poolInfo[_pid];
+        PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
@@ -236,7 +238,7 @@ contract MasterChef is Ownable, Multicall {
 
     // Withdraw LP tokens from MasterChef.
     function withdraw(uint256 _pid, uint256 _amount) public {
-        PoolInfo memory pool = poolInfo[_pid];
+        PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
@@ -254,7 +256,7 @@ contract MasterChef is Ownable, Multicall {
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
     function emergencyWithdraw(uint256 _pid) public {
-        PoolInfo memory pool = poolInfo[_pid];
+        PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         pool.lpToken.safeTransfer(address(msg.sender), user.amount);
         emit EmergencyWithdraw(msg.sender, _pid, user.amount);
