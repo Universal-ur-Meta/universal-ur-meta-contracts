@@ -3,11 +3,11 @@
 
 pragma solidity ^0.8.4;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IFungibleToken.sol";
 import "../interfaces/IMigratorChef.sol";
 
@@ -79,6 +79,12 @@ contract MasterChef is Ownable, Multicall {
         uint256 _umPerBlock,
         uint256 _startBlock
     ) {
+        require(
+            address(_umToken) != address(0) &&
+            devaddr != address(0),
+            "Master chef: constructor set"
+        );
+
         umToken = _umToken;
         devaddr = _devaddr;
         umPerBlock = _umPerBlock;
@@ -209,7 +215,7 @@ contract MasterChef is Ownable, Multicall {
 
     // Deposit LP tokens to MasterChef for UM allocation.
     function deposit(uint256 _pid, uint256 _amount) public {
-        PoolInfo storage pool = poolInfo[_pid];
+        PoolInfo memory pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
@@ -222,15 +228,15 @@ contract MasterChef is Ownable, Multicall {
                 address(this),
                 _amount
             );
+            user.amount = user.amount + _amount;
         }
-        user.amount = user.amount + _amount;
         user.rewardDebt = user.amount * pool.accTokensPerShare / 1e12;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
     // Withdraw LP tokens from MasterChef.
     function withdraw(uint256 _pid, uint256 _amount) public {
-        PoolInfo storage pool = poolInfo[_pid];
+        PoolInfo memory pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
@@ -248,7 +254,7 @@ contract MasterChef is Ownable, Multicall {
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
     function emergencyWithdraw(uint256 _pid) public {
-        PoolInfo storage pool = poolInfo[_pid];
+        PoolInfo memory pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         pool.lpToken.safeTransfer(address(msg.sender), user.amount);
         emit EmergencyWithdraw(msg.sender, _pid, user.amount);
