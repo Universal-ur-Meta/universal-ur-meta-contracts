@@ -41,6 +41,11 @@ contract UMUSDXSales is ReentrancyGuard, ManagedSales {
         external
         nonReentrant
     {
+        require(
+            _intAmount != 0 && _intAmount <= maxTokenPurchase,
+            "Invalid token amount"
+        );
+
         _mint(msg.sender, _intAmount);
     }
 
@@ -56,7 +61,6 @@ contract UMUSDXSales is ReentrancyGuard, ManagedSales {
 
     function _mint(address _caller, uint256 _intAmount) internal {
         require(status != SalesStatus.DISABLED, "Sales DISABLED");
-        require(_intAmount != 0, "Impossible buy zero tokens");
 
         // min umAmount
         uint256 inputAmount = countInputAmount(_intAmount);

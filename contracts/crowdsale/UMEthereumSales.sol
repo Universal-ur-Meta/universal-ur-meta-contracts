@@ -39,8 +39,10 @@ contract UMEthereumSales is ReentrancyGuard, OracleSales {
         payable
         nonReentrant
     {
-        _mint(msg.sender, msg.value);
-    }
+        require(
+            _intAmount != 0 && _intAmount <= maxTokenPurchase,
+            "Invalid token amount"
+        );
 
         _mint(msg.sender, _intAmount);
     }
