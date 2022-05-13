@@ -8,12 +8,19 @@ import "./ManagedSales.sol";
 abstract contract OracleSales is ManagedSales {
     address public priceOracle;
     address public baseStablecoin;
+    address public immutable WETH;
+
+    constructor(address _weth) {
+        WETH = _weth;
+    }
 
     function setPriceOracle(address _priceOracle, address _baseStablecoin) external onlyOwner {
         require(
-            IUniV2PriceOracle(_priceOracle).token0() != _baseStablecoin ||
-            IUniV2PriceOracle(_priceOracle).token1() != _baseStablecoin,
-            "Stablecoin not supported"
+            IUniV2PriceOracle(_priceOracle).token0() == _baseStablecoin &&
+            IUniV2PriceOracle(_priceOracle).token1() == WETH ||
+            IUniV2PriceOracle(_priceOracle).token0() == WETH &&
+            IUniV2PriceOracle(_priceOracle).token1() == _baseStablecoin,
+            "Stablecoin not supported or WETH absent"
         );
 
         priceOracle = _priceOracle;

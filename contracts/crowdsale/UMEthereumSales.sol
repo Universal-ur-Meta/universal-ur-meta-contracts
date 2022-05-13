@@ -16,8 +16,11 @@ contract UMEthereumSales is ReentrancyGuard, OracleSales {
     constructor(
         address _umToken,
         address _giftToken,
-        address payable _fund
-    ) {
+        address payable _fund,
+        address _weth
+    )
+        OracleSales(_weth)
+    {
         require(
             _umToken != address(0) &&
             _fund != address(0),
