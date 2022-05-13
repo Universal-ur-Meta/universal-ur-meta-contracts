@@ -1,13 +1,14 @@
 import chai, { assert } from "chai"
 
 import { ethers } from "hardhat"
-import { Contract, Signer } from "ethers"
+import {BigNumber, Contract, Signer} from "ethers"
 import { solidity } from "ethereum-waffle"
 
 import UniswapV2FactoryArtifacts from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2PairArtifacts from "@uniswap/v2-core/build/UniswapV2Pair.json"
 import WETH9Artifacts from "@uniswap/v2-periphery/build/WETH9.json"
 import {increaseTime} from "./Helper";
+import {parseEther} from "ethers/lib/utils";
 
 chai.use(solidity)
 
@@ -17,10 +18,12 @@ describe("UM with ETH sales", function () {
     let OWNER_SIGNER: any;
     let DEV_SIGNER: any;
     let ALICE_SIGNER: any;
+    let BOB_SIGNER: any;
 
     let OWNER: any;
     let DEV: any;
     let ALICE: any;
+    let BOB: any;
 
     let sales: any
     let umToken: any
@@ -40,9 +43,11 @@ describe("UM with ETH sales", function () {
         OWNER_SIGNER = accounts[0];
         DEV_SIGNER = accounts[1];
         ALICE_SIGNER = accounts[2];
+        BOB_SIGNER = accounts[3];
         OWNER = await OWNER_SIGNER.getAddress();
         DEV = await DEV_SIGNER.getAddress();
         ALICE = await ALICE_SIGNER.getAddress();
+        BOB = await BOB_SIGNER.getAddress();
 
         const UMToken = await ethers.getContractFactory("UMToken");
         const PresaleTicket = await ethers.getContractFactory("PresaleTicket");
@@ -71,14 +76,14 @@ describe("UM with ETH sales", function () {
         voucher = await PresaleTicket.deploy(OWNER)
         await voucher.deployed()
 
-        sales = await UMEthereumSales.deploy(umToken.address, voucher.address, OWNER)
+        weth = await WETH9.deploy()
+        await weth.deployed()
+
+        sales = await UMEthereumSales.deploy(umToken.address, voucher.address, OWNER, weth.address)
         await sales.deployed()
 
         factory = await UniswapV2Factory.deploy(OWNER)
         await factory.deployed()
-
-        weth = await WETH9.deploy()
-        await weth.deployed()
 
         await factory.createPair(weth.address, usd.address);
         let pair: Contract = await UniswapV2Pair.attach(
@@ -87,9 +92,9 @@ describe("UM with ETH sales", function () {
 
         console.log(`Pair: ${pair.address}`)
 
-        await usd.mint(pair.address, 50000000000)
-        await weth.deposit({value: 10000000000})
-        await weth.transfer(pair.address, 10000000000)
+        await usd.mint(pair.address, parseEther('2066.98'))
+        await weth.deposit({value: parseEther('1.0')})
+        await weth.transfer(pair.address, parseEther('1.0'))
 
         await pair.sync()
 
@@ -108,26 +113,31 @@ describe("UM with ETH sales", function () {
     })
 
     describe('success cases', () => {
+        it('#oracle', async () => {
+            let price = parseEther('0.03')
+            let ethPerToken = await oracle.consult(usd.address, price)
+
+            await sales.setRoundWithDetails(2, price, 100000000)
+
+            assert.equal(String(ethPerToken), String(await sales.countInputAmount(1)), 'consult vs countInputAmount')
+        })
+
         it('#mint', async () => {
-            // presale
-            await sales.setRoundWithDetails(1, 10000, 1)
-            await sales.setGiftPrice(100)
+            await sales.setRoundWithDetails(1, parseEther('0.03'), 1)
+            await sales.setGiftPrice(parseEther('0.03'))
 
-            console.log(await oracle.consult(usd.address, 100000000))
-            console.log(await sales.countOutputAmount(100000000))
+            let inputAmount = await sales.countInputAmount(1);
+            console.log(inputAmount)
+            await sales.connect(BOB_SIGNER).mint(1, {value: inputAmount})
+            assert.equal((await umToken.balanceOf(BOB)).toString(), String(parseEther('1.0')), "Um token balance bob")
+            assert.equal(Number(await voucher.balanceOf(BOB, 0)), 1, "Voucher balance 1")
 
-            await sales.connect(ALICE_SIGNER).mint({value: 100000000})
+            await sales.setRoundWithDetails(2, parseEther('0.03'), 1)
+            await sales.setGiftPrice(parseEther('0.03'))
 
-            assert.equal(Number(await voucher.balanceOf(ALICE, 0)), 199999, "Voucher balance 1")
-            assert.equal(Number(await umToken.balanceOf(ALICE)), 1999, "Um token balance 1999UM")
-
-            // sale
-            await sales.setRoundWithDetails(2, 10000, 1)
-
-            await sales.connect(ALICE_SIGNER).mint({value: 100000000})
-
-            console.log((await oracle.consult(usd.address, 100000000)).div(10000).toString())
-            assert.equal(Number(await umToken.balanceOf(ALICE)), 3998, "Um token balance 3998UM")
+            await sales.connect(BOB_SIGNER).mint(1, {value: inputAmount})
+            assert.equal((await umToken.balanceOf(BOB)).toString(), String(parseEther('2.0')), "Um token balance bob")
+            assert.equal(Number(await voucher.balanceOf(BOB, 0)), 1, "Voucher balance 1")
         })
     })
 })
