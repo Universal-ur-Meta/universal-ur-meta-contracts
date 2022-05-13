@@ -13,7 +13,7 @@ import "./ManagedSales.sol";
 
 contract UMUSDXSales is ReentrancyGuard, ManagedSales {
     using SafeERC20 for IERC20;
-    
+
     address public depositToken;
 
     event DepositTokenSet(address token);
@@ -43,17 +43,17 @@ contract UMUSDXSales is ReentrancyGuard, ManagedSales {
     {
         _mint(msg.sender, _intAmount);
     }
-    
+
     function setDepositToken(address _token) external onlyOwner {
         depositToken = _token;
         emit DepositTokenSet(_token);
     }
 
-    // Returns required
-    function countInputAmount(uint256 _outputIntAmount) public view returns (uint256 inputAmount) {
-        inputAmount = price * _outputIntAmount;
+    // @dev {_intAmount} - integer tokens amount.
+    function countInputAmount(uint256 _intAmount) public view returns (uint256 inputAmount) {
+        inputAmount = price * _intAmount;
     }
-    
+
     function _mint(address _caller, uint256 _intAmount) internal {
         require(status != SalesStatus.DISABLED, "Sales DISABLED");
         require(_intAmount != 0, "Impossible buy zero tokens");
