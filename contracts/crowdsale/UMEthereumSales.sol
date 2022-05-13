@@ -49,7 +49,13 @@ contract UMEthereumSales is ReentrancyGuard, OracleSales {
     {
         _mint(msg.sender, msg.value);
     }
-    
+
+    // @dev {_intAmount} - integer tokens amount.
+    function countInputAmount(uint256 _intAmount) public view returns (uint256 inputAmount) {
+        IUniV2PriceOracle _priceOracle = IUniV2PriceOracle(priceOracle);
+        inputAmount = _priceOracle.consult(WETH, price * _intAmount);
+    }
+
     function _mint(address _to, uint256 _deposit) internal {
         require(status != SalesStatus.DISABLED, "Sales DISABLED");
 
