@@ -31,7 +31,7 @@ abstract contract OracleSales is ManagedSales {
     // eth-usd pair
     function countOutputAmount(uint256 _ethInput) public view returns (uint256 umOutput, uint256 usdOutput) {
         IUniV2PriceOracle _priceOracle = IUniV2PriceOracle(priceOracle);
-        usdOutput = _priceOracle.consult(baseStablecoin, _ethInput);
+        usdOutput = _priceOracle.consult(WETH, _ethInput);
         umOutput = usdOutput / price;
     }
 

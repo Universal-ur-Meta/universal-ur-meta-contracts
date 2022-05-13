@@ -34,7 +34,7 @@ contract UMEthereumSales is ReentrancyGuard, OracleSales {
         fund = _fund;
     }
 
-    receive()
+    function mint(uint256 _intAmount)
         external
         payable
         nonReentrant
@@ -42,34 +42,27 @@ contract UMEthereumSales is ReentrancyGuard, OracleSales {
         _mint(msg.sender, msg.value);
     }
 
-    function mint()
-        external
-        payable
-        nonReentrant
-    {
-        _mint(msg.sender, msg.value);
+        _mint(msg.sender, _intAmount);
     }
 
     // @dev {_intAmount} - integer tokens amount.
     function countInputAmount(uint256 _intAmount) public view returns (uint256 inputAmount) {
         IUniV2PriceOracle _priceOracle = IUniV2PriceOracle(priceOracle);
-        inputAmount = _priceOracle.consult(WETH, price * _intAmount);
+        inputAmount = _priceOracle.consult(baseStablecoin, _intAmount * price);
     }
 
-    function _mint(address _to, uint256 _deposit) internal {
+    function _mint(address _to, uint256 _tokens) internal {
         require(status != SalesStatus.DISABLED, "Sales DISABLED");
 
         _updatePrice();
 
-        // min umAmount
-        (uint256 umAmount, uint256 usdAmount) = countOutputAmount(_deposit);
+        uint256 deposit = countInputAmount(_tokens);
 
-        require(umAmount > 0, "Impossible buy zero tokens");
-
-        Address.sendValue(fund, _deposit);
-        IFungibleToken(umToken).mint(_to, umAmount);
+        Address.sendValue(fund, deposit);
+        IFungibleToken(umToken).mint(_to, _tokens * 1e18);
 
         if (status == SalesStatus.PRESALE) {
+            uint256 usdAmount = _tokens * price;
             uint256 giftAmount = usdAmount / giftPrice;
             if (giftAmount > 0) {
                 // send gift
@@ -77,6 +70,6 @@ contract UMEthereumSales is ReentrancyGuard, OracleSales {
             }
         }
 
-        emit Purchase(_to, umAmount, _deposit);
+        emit Purchase(_to, _tokens * 1e18, deposit);
     }
 }
